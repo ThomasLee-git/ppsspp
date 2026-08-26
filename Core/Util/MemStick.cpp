@@ -26,22 +26,69 @@ bool FolderSeemsToBeUsed(const Path &newMemstickFolder) {
 	}
 }
 
-bool SwitchMemstickFolderTo(Path newMemstickFolder) {
+static bool VerifyMemstickFolder(const Path &newMemstickFolder, std::string *error) {
+	const auto fail = [error](const char *message) {
+		if (error) {
+			*error = message;
+		}
+		return false;
+	};
+
+	if (newMemstickFolder.empty()) {
+		return fail("No folder was selected. Select a writable folder on the USB drive.");
+	}
+
 	// Doesn't already exist, create.
 	// Should this ever happen?
 	if (newMemstickFolder.Type() == PathType::NATIVE) {
 		if (!File::Exists(newMemstickFolder)) {
-			File::CreateFullPath(newMemstickFolder);
+			if (!File::CreateFullPath(newMemstickFolder)) {
+				return fail("PPSSPP could not create the selected folder. Select a writable folder on the USB drive.");
+			}
 		}
-		Path testWriteFile = newMemstickFolder / ".write_verify_file";
-		if (!File::WriteDataToFile(true, "1", 1, testWriteFile)) {
-			return false;
-		}
-		File::Delete(testWriteFile);
-	} else {
-		// TODO: Do the same but with scoped storage? Not really necessary, right? If it came from a browse
-		// for folder, we can assume it exists and is writable, barring wacky race conditions like the user
-		// being connected by USB and deleting it.
+	} else if (newMemstickFolder.Type() != PathType::CONTENT_URI) {
+		return fail("The selected location is not a supported local folder.");
+	}
+
+	if (!File::Exists(newMemstickFolder) || !File::IsDirectory(newMemstickFolder)) {
+		return fail("PPSSPP cannot access the selected folder. Select the USB drive root or another writable folder.");
+	}
+
+	Path pspFolder = newMemstickFolder;
+	if (strcasecmp(newMemstickFolder.GetFilename().c_str(), "PSP") != 0) {
+		pspFolder /= "PSP";
+	}
+	if ((!File::Exists(pspFolder) && !File::CreateFullPath(pspFolder)) || !File::IsDirectory(pspFolder)) {
+		return fail("PPSSPP could not create its PSP data folder there. Select the USB drive root or a writable folder.");
+	}
+
+	// A content URI may be readable even when Android did not grant write access.
+	// Exercise the exact create/write/stat/delete operations used by the emulator.
+	Path testWriteFile = pspFolder / StringFromFormat(".ppsspp_write_test_%llx", (unsigned long long)time_now_raw());
+	if (File::Exists(testWriteFile) || !File::WriteDataToFile(false, "PPSSPP", 6, testWriteFile)) {
+		return fail("PPSSPP could not write to the selected folder. Grant write access and select a writable folder on the USB drive.");
+	}
+
+	std::string testContents;
+	if (!File::ReadBinaryFileToString(testWriteFile, &testContents) || testContents != "PPSSPP") {
+		File::Delete(testWriteFile, true);
+		return fail("PPSSPP wrote a test file but could not read it back. The selected drive may be unavailable.");
+	}
+
+	if (!File::Delete(testWriteFile, true) || File::Exists(testWriteFile)) {
+		return fail("PPSSPP could write to the selected folder but could not remove its test file. Check the USB drive and try again.");
+	}
+
+	return true;
+}
+
+bool SwitchMemstickFolderTo(Path newMemstickFolder, std::string *error) {
+	if (error) {
+		error->clear();
+	}
+	if (!VerifyMemstickFolder(newMemstickFolder, error)) {
+		ERROR_LOG(Log::System, "Cannot use memstick folder '%s': %s", newMemstickFolder.c_str(), error ? error->c_str() : "verification failed");
+		return false;
 	}
 
 	Path memStickDirFile = g_Config.internalDataDirectory / "memstick_dir.txt";
@@ -53,7 +100,10 @@ bool SwitchMemstickFolderTo(Path newMemstickFolder) {
 		std::string str = newMemstickFolder.ToString();
 		if (!File::WriteDataToFile(true, str.c_str(), str.size(), memStickDirFile)) {
 			ERROR_LOG(Log::System, "Failed to write memstick path '%s' to '%s'", newMemstickFolder.c_str(), memStickDirFile.c_str());
-			// Not sure what to do if this file can't be written.  Disk full?
+			if (error) {
+				*error = "PPSSPP could not save the selected folder. Check app storage permissions and try again.";
+			}
+			return false;
 		}
 
 #if PPSSPP_PLATFORM(UWP)

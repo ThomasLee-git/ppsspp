@@ -33,5 +33,7 @@ struct MoveResult {
 };
 
 bool FolderSeemsToBeUsed(const Path &newMemstickFolder);
-bool SwitchMemstickFolderTo(Path newMemstickFolder);
+// Verifies that the folder is usable for PSP data, then switches the active memstick.
+// On failure, error (when provided) contains a user-facing explanation.
+bool SwitchMemstickFolderTo(Path newMemstickFolder, std::string *error = nullptr);
 MoveResult *MoveDirectoryContentsSafe(Path moveSrc, Path moveDest, MoveProgressReporter &progressReporter);

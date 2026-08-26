@@ -300,7 +300,9 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 			if (fileList != null) {
 				list = new ArrayList<>();
 				for (File file : fileList) {
-					if (!file.getAbsolutePath().equalsIgnoreCase(Environment.getExternalStorageDirectory().getAbsolutePath()) && file.isDirectory() && file.canRead()) {
+					if (!file.getAbsolutePath().equalsIgnoreCase(Environment.getExternalStorageDirectory().getAbsolutePath()) && file.isDirectory() && file.canRead()
+							&& Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState(file))) {
+						Log.i(TAG, "Removable storage found: " + file.getAbsolutePath());
 						list.add(file.getAbsolutePath());
 					}
 				}
@@ -1572,6 +1574,7 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 				} else {
 					intent.setType("*/*");
 				}
+				intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 				intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 
 				Intent proxy = new Intent(this, DocumentResultProxyActivity.class);

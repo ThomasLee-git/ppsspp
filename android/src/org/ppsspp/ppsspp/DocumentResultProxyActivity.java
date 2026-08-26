@@ -49,19 +49,31 @@ public class DocumentResultProxyActivity extends AppCompatActivity {
 						Log.i(TAG, "DocumentResultProxy: Selected URI: " + uri);
 						try {
 							if (pickerIntent != null && Intent.ACTION_OPEN_DOCUMENT_TREE.equals(pickerIntent.getAction())) {
-								getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-								DocumentFile documentFile = DocumentFile.fromTreeUri(this, uri);
-								if (documentFile != null) {
-									uri = documentFile.getUri();
-									Log.i(TAG, "DocumentResultProxy: DocumentFile URI: " + uri);
+								int grantedFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+								if ((grantedFlags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == 0) {
+									throw new SecurityException("Folder picker did not grant write access");
 								}
+								getContentResolver().takePersistableUriPermission(uri, grantedFlags);
+								DocumentFile documentFile = DocumentFile.fromTreeUri(this, uri);
+								if (documentFile == null) {
+									throw new SecurityException("Folder picker returned an invalid tree URI");
+								}
+								uri = documentFile.getUri();
+								Log.i(TAG, "DocumentResultProxy: DocumentFile URI: " + uri);
 							} else {
 								getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
 							}
 						} catch (Exception e) {
 							Log.w(TAG, "DocumentResultProxy: Exception getting permissions or DocumentFile: " + e);
+							if (pickerIntent != null && Intent.ACTION_OPEN_DOCUMENT_TREE.equals(pickerIntent.getAction())) {
+								resultPath = null;
+								returnWithResult(NativeApp.RESULT_ERROR_OTHER_ACTIVITY_ERROR, requestId, null);
+								return;
+							}
 						}
-						resultPath = uri.toString();
+						if (resultPath == null) {
+							resultPath = uri.toString();
+						}
 					} else {
 						Log.w(TAG, "DocumentResultProxy: URI is null in result data");
 					}

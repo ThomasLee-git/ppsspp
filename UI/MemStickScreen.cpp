@@ -183,6 +183,10 @@ void MemStickScreen::CreateViews() {
 	mainColumn->Add(new Spacer(new LinearLayoutParams(FILL_PARENT, 18.0f, 0.0f)));
 
 	mainColumn->Add(new TextView(ms->T("MemoryStickDescription", "Choose where to keep PSP data (Memory Stick)"), ALIGN_LEFT, false));
+	if (initialSetup_ && choice_ == CHOICE_BROWSE_FOLDER) {
+		mainColumn->Add(new NoticeView(NoticeLevel::INFO,
+			ms->T("InitialSetupStorageHint", "Select the USB drive root, or a writable folder on that drive. PPSSPP will create its PSP data folders there."), ""));
+	}
 	mainColumn->Add(new Spacer(new LinearLayoutParams(FILL_PARENT, 18.0f, 0.0f)));
 
 	ViewGroup *subColumns = new LinearLayoutList(ORIENT_HORIZONTAL);
@@ -377,11 +381,13 @@ void MemStickScreen::UseInternalStorage(UI::EventParams &params) {
 	if (initialSetup_) {
 		// There's not gonna be any files here in this case since it's a fresh install.
 		// Let's just accept it and move on. No need to move files either.
-		if (SwitchMemstickFolderTo(pendingMemStickFolder)) {
+		std::string error;
+		if (SwitchMemstickFolderTo(pendingMemStickFolder, &error)) {
 			TriggerFinish(DialogResult::DR_OK);
 		} else {
-			// This can't really happen?? Not worth making an error message.
-			ERROR_LOG_REPORT(Log::System, "Could not switch memstick path in setup (internal)");
+			g_OSD.Show(OSDType::MESSAGE_ERROR, "Could not use app storage", error, 8.0f);
+			RecreateViews();
+			return;
 		}
 		// Don't have a confirmation dialog that would otherwise do it for us, need to just switch directly to the main screen.
 		screenManager()->switchScreen(new MainScreen());
@@ -400,11 +406,13 @@ void MemStickScreen::UseStorageRoot(UI::EventParams &params) {
 	if (initialSetup_) {
 		// There's not gonna be any files here in this case since it's a fresh install.
 		// Let's just accept it and move on. No need to move files either.
-		if (SwitchMemstickFolderTo(pendingMemStickFolder)) {
+		std::string error;
+		if (SwitchMemstickFolderTo(pendingMemStickFolder, &error)) {
 			TriggerFinish(DialogResult::DR_OK);
 		} else {
-			// This can't really happen?? Not worth making an error message.
-			ERROR_LOG_REPORT(Log::System, "Could not switch memstick path in setup");
+			g_OSD.Show(OSDType::MESSAGE_ERROR, "Could not use storage", error, 8.0f);
+			RecreateViews();
+			return;
 		}
 	} else if (pendingMemStickFolder != g_Config.memStickDirectory) {
 		// Always ask for confirmation when called from the UI. Likely there's already some data.
@@ -444,6 +452,9 @@ void MemStickScreen::Browse(UI::EventParams &params) {
 					System_LaunchUrl(LaunchUrlType::BROWSER_URL, "https://www.ppsspp.org/docs/troubleshooting/cant-pick-folder/");
 				}
 			));
+		} else if (responseValue != 0) {
+			g_OSD.Show(OSDType::MESSAGE_ERROR, "Could not open folder picker",
+				"Android did not grant access to the selected folder. Please try again and grant write access.", 10.0f, "memstick_picker");
 		}
 	});
 }
@@ -645,9 +656,11 @@ void ConfirmMemstickMoveScreen::FinishFolderMove() {
 	Path oldMemstickFolder = g_Config.memStickDirectory;
 
 	// Successful so far, switch the memstick folder.
-	if (!SwitchMemstickFolderTo(newMemstickFolder_)) {
-		// TODO: More precise errors.
-		error_ = ms->T("That folder doesn't work as a memstick folder.");
+	std::string switchError;
+	if (!SwitchMemstickFolderTo(newMemstickFolder_, &switchError)) {
+		error_ = switchError;
+		g_OSD.Show(OSDType::MESSAGE_ERROR, "Cannot use selected PSP data folder", error_, 10.0f, "memstick_folder");
+		RecreateViews();
 		return;
 	}
 
