@@ -462,11 +462,6 @@ static int DefaultAndroidHwScale() {
 #endif
 }
 
-// See issue 14439. Should possibly even block these devices from selecting VK.
-const char * const vulkanDefaultBlacklist[] = {
-	"Sony:BRAVIA VH1",
-};
-
 static int DefaultGPUBackend() {
 	if (IsVREnabled()) {
 		return (int)GPUBackend::OPENGL;
@@ -484,27 +479,9 @@ static int DefaultGPUBackend() {
 		return (int)GPUBackend::DIRECT3D11;
 	}
 #elif PPSSPP_PLATFORM(ANDROID)
-	// Check blacklist.
-	for (size_t i = 0; i < ARRAY_SIZE(vulkanDefaultBlacklist); i++) {
-		if (System_GetProperty(SYSPROP_NAME) == vulkanDefaultBlacklist[i]) {
-			return (int)GPUBackend::OPENGL;
-		}
-	}
-
-	// Default to Vulkan only on Oreo 8.1 (level 27) devices or newer, and only
-	// on ARM64 and x86-64. Drivers before, and on other archs, are generally too
-	// unreliable to default to (with some exceptions, of course).
-#if PPSSPP_ARCH(64BIT)
-	if (System_GetPropertyInt(SYSPROP_SYSTEMVERSION) >= 27) {
-		return (int)GPUBackend::VULKAN;
-	}
-#else
-	// There are some newer devices that benefit from Vulkan as default, but are 32-bit. Example: Redmi 9A.
-	// Let's only allow the very newest generation though.
-	if (System_GetPropertyInt(SYSPROP_SYSTEMVERSION) >= 30) {
-		return (int)GPUBackend::VULKAN;
-	}
-#endif
+	// OpenGL is the most compatible default on Android. Vulkan remains available
+	// as an explicit user-selected backend for devices with a reliable driver.
+	return (int)GPUBackend::OPENGL;
 
 #elif PPSSPP_PLATFORM(MAC)
 
