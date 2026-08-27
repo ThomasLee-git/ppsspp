@@ -49,7 +49,7 @@ public class DocumentResultProxyActivity extends AppCompatActivity {
 						Log.i(TAG, "DocumentResultProxy: Selected URI: " + uri);
 						try {
 							if (pickerIntent != null && Intent.ACTION_OPEN_DOCUMENT_TREE.equals(pickerIntent.getAction())) {
-								int grantedFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+								int grantedFlags = result.getData().getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 								if ((grantedFlags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == 0) {
 									throw new SecurityException("Folder picker did not grant write access");
 								}
