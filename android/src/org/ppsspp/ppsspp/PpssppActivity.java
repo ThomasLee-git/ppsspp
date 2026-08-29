@@ -1574,8 +1574,11 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 				} else {
 					intent.setType("*/*");
 				}
-				intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 				intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+				if (intent.resolveActivity(getPackageManager()) == null) {
+					launchNativeFileChooser(requestId, false);
+					return true;
+				}
 
 				Intent proxy = new Intent(this, DocumentResultProxyActivity.class);
 				proxy.putExtra("picker_intent", intent);
@@ -1596,6 +1599,10 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 				intent.addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
 				intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 				intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);  // Only allow local folders.
+				if (intent.resolveActivity(getPackageManager()) == null) {
+					launchNativeFileChooser(requestId, true);
+					return true;
+				}
 
 				Intent proxy = new Intent(this, DocumentResultProxyActivity.class);
 				proxy.putExtra("picker_intent", intent);
@@ -1831,6 +1838,18 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 			return false;
 		}
 		return false;
+	}
+
+	private void launchNativeFileChooser(int requestId, boolean directory) {
+		File start = new File(Environment.getExternalStorageDirectory().getAbsolutePath());
+		Runnable cancelled = () -> NativeApp.sendRequestResult(requestId, false, "", NativeApp.RESULT_CANCELED);
+		if (directory) {
+			new SimpleFileChooser(this, start, null, file ->
+				NativeApp.sendRequestResult(requestId, true, file.getAbsolutePath(), 0), cancelled).showDialog();
+		} else {
+			new SimpleFileChooser(this, start, file ->
+				NativeApp.sendRequestResult(requestId, true, file.getAbsolutePath(), 0), null, cancelled).showDialog();
+		}
 	}
 
 	public static boolean isVRDevice() {

@@ -112,7 +112,8 @@ bool SwitchMemstickFolderTo(Path newMemstickFolder, std::string *error) {
 
 	// Save so the settings, at least, are transferred.
 	g_Config.memStickDirectory = newMemstickFolder;
-	g_Config.SetSearchPath(GetSysDirectory(DIRECTORY_SYSTEM));
+	// Keep the global config in the app-private location. The selected memstick
+	// may be a SAF content URI, which should only contain PSP data.
 	g_Config.UpdateIniLocation();
 	return true;
 }

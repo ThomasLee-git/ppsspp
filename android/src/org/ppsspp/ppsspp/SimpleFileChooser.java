@@ -18,8 +18,13 @@ public class SimpleFileChooser {
 	public interface FileSelectedListener {
 		void onFileSelected(File file);
 	}
+	public interface DirectorySelectedListener {
+		void onDirectorySelected(File directory);
+	}
 
 	private final FileSelectedListener mFileListener;
+	private final DirectorySelectedListener mDirectoryListener;
+	private final Runnable mCancelListener;
 
 	private final Activity mActivity;
 	private static final String PARENT_DIR = "..";
@@ -27,8 +32,18 @@ public class SimpleFileChooser {
 	private File mCurrentPath;
 
 	public SimpleFileChooser(Activity activity, File path, FileSelectedListener listener) {
+		this(activity, path, listener, null);
+	}
+
+	public SimpleFileChooser(Activity activity, File path, FileSelectedListener fileListener, DirectorySelectedListener directoryListener) {
+		this(activity, path, fileListener, directoryListener, null);
+	}
+
+	public SimpleFileChooser(Activity activity, File path, FileSelectedListener fileListener, DirectorySelectedListener directoryListener, Runnable cancelListener) {
 		this.mActivity = activity;
-		this.mFileListener = listener;
+		this.mFileListener = fileListener;
+		this.mDirectoryListener = directoryListener;
+		this.mCancelListener = cancelListener;
 		if (!path.exists())
 			path = Environment.getExternalStorageDirectory();
 		rebuildFileList(path);
@@ -39,6 +54,10 @@ public class SimpleFileChooser {
 		builder.setTitle(mCurrentPath.getPath());
 		// populate dialog with list of files and directories.
 		builder.setItems(mFileList, onDialogItemClickedListener);
+		if (mDirectoryListener != null)
+			builder.setPositiveButton("Select this folder", (dialog, which) -> mDirectoryListener.onDirectorySelected(mCurrentPath));
+		if (mCancelListener != null)
+			builder.setOnCancelListener(dialog -> mCancelListener.run());
 		builder.show();
 	}
 
