@@ -1575,7 +1575,7 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 					intent.setType("*/*");
 				}
 				intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-				if (isTVDevice() || intent.resolveActivity(getPackageManager()) == null) {
+				if (intent.resolveActivity(getPackageManager()) == null) {
 					launchNativeFileChooser(requestId, false);
 					return true;
 				}
@@ -1598,8 +1598,7 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 				intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 				intent.addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
 				intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-				intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);  // Only allow local folders.
-				if (isTVDevice() || intent.resolveActivity(getPackageManager()) == null) {
+				if (intent.resolveActivity(getPackageManager()) == null) {
 					launchNativeFileChooser(requestId, true);
 					return true;
 				}
@@ -1854,11 +1853,6 @@ public class PpssppActivity extends AppCompatActivity implements SensorEventList
 
 	public static boolean isVRDevice() {
 		return BuildConfig.FLAVOR.startsWith("vr");
-	}
-
-	private boolean isTVDevice() {
-		UiModeManager uiModeManager = (UiModeManager) getSystemService(UI_MODE_SERVICE);
-		return uiModeManager != null && uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
 	}
 
 	private static String parseIntent(Intent intent) {
